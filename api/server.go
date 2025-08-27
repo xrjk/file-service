@@ -24,6 +24,41 @@ type Server struct {
 	config  *config.Config
 }
 
+// AuthMiddleware is the authentication middleware
+func (s *Server) AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 如果未启用鉴权，则直接通过
+		if !s.config.Auth.Enabled {
+			c.Next()
+			return
+		}
+
+		// 获取API Key
+		apiKey := c.GetHeader("X-API-Key")
+		if apiKey == "" {
+			// 如果header中没有，尝试从查询参数获取
+			apiKey = c.Query("api_key")
+		}
+
+		// 检查API Key是否有效
+		if apiKey == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "API key is required"})
+			c.Abort()
+			return
+		}
+
+		// 检查API Key是否在配置中
+		if _, exists := s.config.Auth.APIKeys[apiKey]; !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+			c.Abort()
+			return
+		}
+
+		// 鉴权通过
+		c.Next()
+	}
+}
+
 // NewServer creates a new HTTP server
 func NewServer(cfg *config.Config) (*Server, error) {
 	// Set gin to release mode in production
@@ -101,17 +136,22 @@ func createStorage(cfg *config.Config) (storage.Storage, error) {
 
 // registerRoutes registers HTTP routes
 func (s *Server) registerRoutes() {
-	// Health check endpoint
+	// Health check endpoint - 不需要鉴权
 	s.engine.GET("/health", s.healthCheck)
 
-	// File operations
-	s.engine.POST("/upload/:bucket/*object", s.uploadFile)
-	s.engine.GET("/download/:bucket/*object", s.downloadFile)
-	s.engine.DELETE("/delete/:bucket/*prefix", s.deleteObjects) // 保留批量删除路由
-	s.engine.GET("/list/:bucket", s.listObjects)
-	s.engine.GET("/list/:bucket/*prefix", s.listObjects) // 添加对带前缀参数的路由支持
-	s.engine.GET("/list/", s.listObjects) // 添加对/list/路径的支持
-	s.engine.HEAD("/info/:bucket/*object", s.getObjectInfo)
+	// 应用鉴权中间件到所有需要保护的路由
+	authorized := s.engine.Group("/")
+	authorized.Use(s.AuthMiddleware())
+
+	{
+		// File operations
+		authorized.POST("/upload/:bucket/*object", s.uploadFile)
+		authorized.GET("/download/:bucket/*object", s.downloadFile)
+		authorized.DELETE("/delete/:bucket/*object", s.deleteFile)
+		authorized.GET("/list/:bucket", s.listObjects)
+		authorized.GET("/list/", s.listObjects) // 添加对/list/路径的支持
+		authorized.HEAD("/info/:bucket/*object", s.getObjectInfo)
+	}
 }
 
 // healthCheck handles health check requests

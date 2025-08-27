@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+storage:
+  # Storage type: minio, oss, obs, azure
+  type: "minio"
+  # Default bucket name
+  bucket: "test"
+  
+  minio:
+    endpoint: "miniohost:9000"
+    access_key: "accesskey"
+    secret_key: "secretkey"
+    use_ssl: false
+  
+  oss:
+    endpoint: "oss-cn-hangzhou.aliyuncs.com"
+    access_key: "accesskey"
+    secret_key: "secretkey"
+    use_ssl: true
+  
+  obs:
+    endpoint: "obs.cn-east-3.myhuaweicloud.com"
+    access_key: "accesskey"
+    secret_key: "secretkey"
+    use_ssl: true
+  
+  azure:
+    endpoint: "https://accountname.blob.core.chinacloudapi.cn"
+    account_name: "accountname"
+    account_key: "accountkey"
+    connection_string: ""
+
+log:
+  level: "info"

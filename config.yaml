@@ -1,6 +1,11 @@
 server:
   port: 8080
-
+  
+auth:
+  enabled: true  # 默认不启用鉴权
+  api_keys:
+    # 示例: "api_key": "description"
+    "sk-1234567890abcdef": "Default admin key"
 storage:
   # Storage type: minio, oss, obs, azure
   type: "minio"
